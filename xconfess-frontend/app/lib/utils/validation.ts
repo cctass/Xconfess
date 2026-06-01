@@ -26,6 +26,15 @@ export const loginSchema = z.object({
 
 export type LoginFormData = z.infer<typeof loginSchema>;
 
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
+});
+
+export type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+
 /**
  * Register form validation schema
  */
@@ -119,6 +128,51 @@ export function validateLoginForm(
   }
 
   return errors;
+}
+
+export function validateForgotPasswordForm(
+  data: Partial<ForgotPasswordFormData>
+): ValidationErrors {
+  const errors: ValidationErrors = {};
+
+  const result = forgotPasswordSchema.safeParse(data);
+
+  if (!result.success && result.error) {
+    const zodError = result.error as z.ZodError;
+    if (zodError.issues && Array.isArray(zodError.issues)) {
+      zodError.issues.forEach((err) => {
+        const field = err.path[0] as keyof ValidationErrors;
+        if (field) {
+          errors[field] = err.message;
+        }
+      });
+    }
+  }
+
+  return errors;
+}
+
+export function parseForgotPasswordForm(data: unknown):
+  | { success: true; data: ForgotPasswordFormData }
+  | { success: false; errors: ValidationErrors } {
+  const result = forgotPasswordSchema.safeParse(data);
+
+  if (result.success) {
+    return { success: true, data: result.data };
+  }
+
+  const errors: ValidationErrors = {};
+  const zodError = result.error as z.ZodError;
+  if (zodError.issues && Array.isArray(zodError.issues)) {
+    zodError.issues.forEach((err) => {
+      const field = err.path[0] as keyof ValidationErrors;
+      if (field) {
+        errors[field] = err.message;
+      }
+    });
+  }
+
+  return { success: false, errors };
 }
 
 /**

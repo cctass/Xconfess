@@ -9,23 +9,34 @@ interface ComparisonTableProps {
 }
 
 export function ComparisonTable({ data }: ComparisonTableProps) {
-  if (!data.items.length) {
+  const { items, metrics } = data;
+
+  if (!items.length) {
     return (
-      <Card className="p-6 text-center">
-        <p className="text-muted-foreground">No items selected for comparison</p>
+      <Card className="p-6 text-center min-h-[240px] flex flex-col items-center justify-center gap-3">
+        <p className="text-lg font-semibold text-white">No items selected for comparison</p>
+        <p className="max-w-xl text-sm text-zinc-400">
+          Pick confessions from the feed and use the comparison link to compare engagement side by side.
+        </p>
       </Card>
     );
   }
 
-  const { items, metrics } = data;
+  if (!metrics.length) {
+    return (
+      <Card className="p-6 text-center min-h-[240px] flex flex-col items-center justify-center gap-3">
+        <p className="text-lg font-semibold text-white">Nothing to compare</p>
+        <p className="max-w-xl text-sm text-zinc-400">
+          The selected confessions do not have comparable metrics available.
+        </p>
+      </Card>
+    );
+  }
 
-  // Find the best value for each metric (highest number, or earliest date for createdAt)
   const getBestValue = (metric: string, values: (number | string)[]) => {
     if (metric === 'createdAt') {
-      // For dates, "best" might be earliest (oldest)
       return Math.min(...values.map(v => new Date(v as string).getTime()));
     }
-    // For numbers, highest is best
     return Math.max(...values.map(v => Number(v)));
   };
 
@@ -43,10 +54,10 @@ export function ComparisonTable({ data }: ComparisonTableProps) {
   };
 
   return (
-    <Card className="overflow-x-auto">
-      <table className="w-full">
+    <Card className="overflow-x-auto min-h-[280px]">
+      <table className="w-full border-separate border-spacing-0">
         <thead>
-          <tr className="border-b">
+          <tr className="border-b border-zinc-800">
             <th className="p-4 text-left font-semibold">Confession</th>
             {metrics.map(metric => (
               <th key={metric} className="p-4 text-left font-semibold capitalize">
@@ -57,8 +68,8 @@ export function ComparisonTable({ data }: ComparisonTableProps) {
         </thead>
         <tbody>
           {items.map(item => (
-            <tr key={item.id} className="border-b hover:bg-muted/50">
-              <td className="p-4">
+            <tr key={item.id} className="border-b border-zinc-800 hover:bg-zinc-900 transition-colors">
+              <td className="p-4 align-top">
                 <div className="max-w-xs truncate" title={item.data.content}>
                   {item.name}
                 </div>
@@ -67,9 +78,9 @@ export function ComparisonTable({ data }: ComparisonTableProps) {
                 const value = item.metrics[metric];
                 const best = isBest(metric, value);
                 return (
-                  <td key={metric} className="p-4">
-                    <div className="flex items-center gap-2">
-                      <span className={best ? 'font-bold text-primary' : ''}>
+                  <td key={metric} className="p-4 align-top">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={best ? 'font-bold text-emerald-300' : 'text-zinc-200'}>
                         {value}
                       </span>
                       {best && <Badge variant="secondary">Best</Badge>}

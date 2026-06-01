@@ -62,6 +62,7 @@ export function useDrafts() {
 
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
+      return true;
     } catch (error) {
       // Issue #678: Replace repeated logging with a single user-friendly fallback path
       if (!hasWarnedStorageError) {
@@ -70,11 +71,12 @@ export function useDrafts() {
         );
         hasWarnedStorageError = true;
       }
+      return false;
     }
   }, []);
 
   const saveDraft = useCallback(
-    (draft: Omit<Draft, "id" | "savedAt" | "characterCount">): string => {
+    (draft: Omit<Draft, "id" | "savedAt" | "characterCount">): string | null => {
       const newDraft: Draft = {
         ...draft,
         id: crypto.randomUUID(),
@@ -83,15 +85,15 @@ export function useDrafts() {
       };
 
       const updated = [newDraft, ...drafts.filter((d) => d.id !== newDraft.id)];
-      saveDrafts(updated);
+      const success = saveDrafts(updated);
 
-      return newDraft.id;
+      return success ? newDraft.id : null;
     },
     [drafts, saveDrafts],
   );
 
   const updateDraft = useCallback(
-    (id: string, updates: Partial<Omit<Draft, "id" | "savedAt">>) => {
+    (id: string, updates: Partial<Omit<Draft, "id" | "savedAt">>): boolean => {
       const updated = drafts.map((draft) =>
         draft.id === id
           ? {
@@ -104,7 +106,7 @@ export function useDrafts() {
             }
           : draft,
       );
-      saveDrafts(updated);
+      return saveDrafts(updated);
     },
     [drafts, saveDrafts],
   );

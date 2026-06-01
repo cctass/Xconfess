@@ -36,6 +36,8 @@ export const DraftManager: React.FC<DraftManagerProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [clearDraftsOpen, setClearDraftsOpen] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'failed'>('saved');
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedRef = useRef<string>("");
   const toast = useGlobalToast();
@@ -47,11 +49,62 @@ export const DraftManager: React.FC<DraftManagerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drafts]);
 
+  const persistDraft = async () => {
+    const currentContent = JSON.stringify(currentDraft);
+    if (currentContent === lastSavedRef.current) {
+      return true;
+    }
+
+    if (!currentDraft.body.trim().length) {
+      setSaveStatus('saved');
+      setSaveMessage(null);
+      lastSavedRef.current = currentContent;
+      return true;
+    }
+
+    const draftToSave = {
+      title: currentDraft.title,
+      body: currentDraft.body,
+      gender: currentDraft.gender as Gender | undefined,
+    };
+
+    setSaveStatus('saving');
+    setSaveMessage('Saving draft...');
+
+    const existingDraft = currentDraftId ? loadDraft(currentDraftId) : null;
+    let success = false;
+
+    if (existingDraft && currentDraftId) {
+      success = updateDraft(currentDraftId, draftToSave);
+    } else {
+      if (currentDraftId) {
+        setCurrentDraftId(null);
+      }
+      const newDraftId = saveDraft(draftToSave);
+      if (newDraftId) {
+        setCurrentDraftId(newDraftId);
+        success = true;
+      }
+    }
+
+    if (success) {
+      setSaveStatus('saved');
+      setSaveMessage('Draft saved.');
+      lastSavedRef.current = currentContent;
+      return true;
+    }
+
+    setSaveStatus('failed');
+    setSaveMessage('Failed to save draft.');
+    return false;
+  };
+
   useEffect(() => {
     const currentContent = JSON.stringify(currentDraft);
 
-    if (currentContent === lastSavedRef.current) {
-      return;
+    if (currentContent !== lastSavedRef.current) {
+      setSaveStatus('unsaved');
+      setSaveMessage('Unsaved changes');
     }
 
     if (autoSaveTimerRef.current) {
@@ -59,26 +112,7 @@ export const DraftManager: React.FC<DraftManagerProps> = ({
     }
 
     autoSaveTimerRef.current = setTimeout(() => {
-      if (currentDraft.body.trim().length > 0) {
-        const draftToSave = {
-          title: currentDraft.title,
-          body: currentDraft.body,
-          gender: currentDraft.gender as Gender | undefined,
-        };
-
-        const existingDraft = currentDraftId ? loadDraft(currentDraftId) : null;
-
-        if (existingDraft && currentDraftId) {
-          updateDraft(currentDraftId, draftToSave);
-        } else {
-          if (currentDraftId) {
-            setCurrentDraftId(null);
-          }
-          const newDraftId = saveDraft(draftToSave);
-          setCurrentDraftId(newDraftId);
-        }
-        lastSavedRef.current = currentContent;
-      }
+      void persistDraft();
     }, autoSaveInterval);
 
     return () => {
@@ -128,21 +162,47 @@ export const DraftManager: React.FC<DraftManagerProps> = ({
         onConfirm={handleClearDrafts}
       />
 
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setIsModalOpen(true)}
-        aria-label="Manage drafts"
-        className="flex items-center gap-2"
-      >
-        <FileText className="h-4 w-4" />
-        <span className="hidden sm:inline">Drafts</span>
-        {drafts.length > 0 && (
-          <span className="rounded-full bg-zinc-700 px-2 py-0.5 text-xs">
-            {drafts.length}
-          </span>
-        )}
-      </Button>
+      <div className="flex flex-col gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsModalOpen(true)}
+          aria-label="Manage drafts"
+          className="flex items-center gap-2"
+        >
+          <FileText className="h-4 w-4" />
+          <span className="hidden sm:inline">Drafts</span>
+          {drafts.length > 0 && (
+            <span className="rounded-full bg-zinc-700 px-2 py-0.5 text-xs">
+              {drafts.length}
+            </span>
+          )}
+        </Button>
+
+        <div className="text-xs text-zinc-400">
+          {saveStatus === 'saved' && saveMessage && (
+            <span>{saveMessage}</span>
+          )}
+          {saveStatus === 'unsaved' && (
+            <span className="text-amber-300">Unsaved changes</span>
+          )}
+          {saveStatus === 'saving' && (
+            <span>Saving draft…</span>
+          )}
+          {saveStatus === 'failed' && (
+            <span className="text-rose-300">
+              Failed to save draft.{' '}
+              <button
+                type="button"
+                onClick={() => void persistDraft()}
+                className="underline"
+              >
+                Retry
+              </button>
+            </span>
+          )}
+        </div>
+      </div>
 
       <Modal
         isOpen={isModalOpen}

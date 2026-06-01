@@ -14,6 +14,9 @@ export const TrendingDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'7days' | '30days'>('7days');
   const [error, setError] = useState<string | null>(null);
+  const [fetchedAt, setFetchedAt] = useState<number | null>(null);
+
+  const STALE_MS = 1000 * 60 * 5; // 5 minutes
 
   const fetchAnalytics = useCallback(async () => {
     try {
@@ -25,6 +28,18 @@ export const TrendingDashboard = () => {
 
       const analyticsData = await res.json();
       setData(analyticsData);
+
+      // Prefer backend-provided timestamp header or body field when available
+      const headerDate = res.headers.get('x-generated-at');
+      if (headerDate) {
+        const ts = Date.parse(headerDate);
+        if (!isNaN(ts)) setFetchedAt(ts);
+      } else if ((analyticsData as any).generatedAt) {
+        const ts = Date.parse((analyticsData as any).generatedAt);
+        if (!isNaN(ts)) setFetchedAt(ts);
+      } else {
+        setFetchedAt(Date.now());
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load analytics');
     } finally {
@@ -36,35 +51,15 @@ export const TrendingDashboard = () => {
     fetchAnalytics();
   }, [fetchAnalytics]);
 
-  if (loading) {
-    return <AnalyticsLoadingSkeleton />;
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">📊</div>
-          <h2 className="text-xl font-bold text-white mb-2">Failed to Load Analytics</h2>
-          <p className="text-gray-400 mb-4">{error}</p>
-          <button
-            onClick={fetchAnalytics}
-            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-white"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!data) return null;
+  const isStale = fetchedAt ? Date.now() - fetchedAt > STALE_MS : false;
+  const isInitialLoad = !data && loading;
+  const showSkeleton = !data;
 
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
           <div>
             <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
               <TrendingUp className="w-8 h-8 text-purple-500" />
@@ -73,10 +68,15 @@ export const TrendingDashboard = () => {
             <p className="text-gray-400">
               Discover the most popular confessions and platform insights
             </p>
+            {fetchedAt && (
+              <p className={`text-sm mt-2 ${isStale ? 'text-amber-400' : 'text-zinc-500'}`}>
+                {isStale ? 'Stale data — consider refreshing' : `Last updated ${new Date(fetchedAt).toLocaleString()}`}
+              </p>
+            )}
           </div>
 
           {/* Period Selector */}
-          <div className="flex items-center gap-2 mt-4 md:mt-0">
+          <div className="flex flex-wrap items-center gap-2 mt-4 md:mt-0">
             <Calendar className="w-5 h-5 text-gray-400" />
             <div className="flex gap-2">
               <button
@@ -98,36 +98,94 @@ export const TrendingDashboard = () => {
                 30 Days
               </button>
             </div>
+            <button
+              onClick={fetchAnalytics}
+              disabled={loading}
+              className="px-4 py-2 rounded-lg bg-slate-800 text-slate-200 hover:bg-slate-700 disabled:opacity-50"
+            >
+              {loading ? 'Refreshing…' : 'Refresh'}
+            </button>
           </div>
         </div>
 
+        {/* Error banner */}
+        {error && (
+          <div className="mb-6 rounded-xl border px-4 py-3 bg-red-900/20 border-red-800 text-sm flex items-center justify-between">
+            <div>
+              <strong className="mr-2">Failed to load analytics</strong>
+              <span className="text-red-200">{error}</span>
+            </div>
+            <div>
+              <button
+                onClick={fetchAnalytics}
+                className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-white"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Metrics Overview */}
-        <MetricsOverview metrics={data.totalMetrics} period={period} />
+        {showSkeleton ? (
+          <AnalyticsLoadingSkeleton />
+        ) : (
+          <MetricsOverview metrics={data?.totalMetrics ?? { totalConfessions: 0, totalReactions: 0, totalUsers: 0 }} period={period} />
+        )}
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <ReactionChart data={data.reactionDistribution} />
-          <ActivityChart data={data.dailyActivity} />
+          {showSkeleton ? (
+            <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 min-h-[320px]">
+              <div className="h-6 w-48 bg-zinc-800 rounded-lg animate-pulse mb-6" />
+              <div className="h-64 bg-zinc-800 rounded-lg animate-pulse" />
+            </div>
+          ) : (
+            <ReactionChart data={data?.reactionDistribution ?? []} />
+          )}
+
+          {showSkeleton ? (
+            <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 min-h-[320px]">
+              <div className="h-6 w-48 bg-zinc-800 rounded-lg animate-pulse mb-6" />
+              <div className="h-64 bg-zinc-800 rounded-lg animate-pulse" />
+            </div>
+          ) : (
+            <ActivityChart data={data?.dailyActivity ?? []} />
+          )}
         </div>
 
         {/* Trending Confessions */}
-        <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
+        <div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 min-h-[220px]">
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
             <TrendingUp className="w-6 h-6 text-yellow-500" />
             Top Trending Confessions
           </h2>
 
           <div className="space-y-4">
-            {data.trending.map((confession, index) => (
-              <TrendingConfessionCard
-                key={confession.id}
-                confession={confession}
-                rank={index + 1}
-              />
-            ))}
+            {showSkeleton ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="bg-zinc-800 rounded-xl p-5">
+                  <div className="flex gap-4">
+                    <div className="w-12 h-12 bg-zinc-700 rounded-lg animate-pulse" />
+                    <div className="flex-1 space-y-3">
+                      <div className="h-6 w-full bg-zinc-700 rounded-lg animate-pulse" />
+                      <div className="h-4 w-3/4 bg-zinc-700 rounded-lg animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              data?.trending.map((confession, index) => (
+                <TrendingConfessionCard
+                  key={confession.id}
+                  confession={confession}
+                  rank={index + 1}
+                />
+              ))
+            )}
           </div>
 
-          {data.trending.length === 0 && (
+          {!loading && data && data.trending.length === 0 && (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">📭</div>
               <p className="text-gray-400">No trending confessions yet</p>

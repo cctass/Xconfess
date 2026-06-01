@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -155,6 +156,10 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   autoComplete="current-password"
                 />
+              </div>
+
+              <div className="text-sm text-indigo-600 hover:text-indigo-400">
+                <Link href="/forgot-password">Forgot password?</Link>
               </div>
 
               <Button
