@@ -14,13 +14,7 @@ import { Card } from "@/app/components/ui/card"; // Reusing your UI package syst
 import { Button } from "@/app/components/ui/button";
 import { DEFAULT_FILTERS, type SearchFilters } from "@/app/lib/types/search";
 import type { FilterChipKey } from "@/app/components/search/FilterChips";
-import {
-  Filter,
-  X,
-  HelpCircle,
-  Save,
-  HelpCircle as TooltipIcon,
-} from "lucide-react";
+import { Filter, X, HelpCircle, Save } from "lucide-react";
 import { cn } from "@/app/lib/utils/cn";
 import { useFocusTrap } from "@/app/lib/hooks/useFocusTrap";
 
@@ -307,6 +301,7 @@ export default function SearchPage() {
                 type="button"
                 size="sm"
                 variant={user ? "default" : "outline"} //  "outline" matches your component rules
+                onClick={handleSaveSearch}
                 disabled={!user || !query.trim()}
                 className={cn(
                   "gap-2 transition-all duration-200",
