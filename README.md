@@ -201,6 +201,10 @@ When your PR is ready for review, use the [Ready for Review comment template](do
 
 When reporting bugs, see [Attaching Logs to Issues and PRs](docs/LOG_ATTACHING_GUIDE.md) for redaction guidelines.
 
+## GrantFox Campaign
+
+xConfess participates in the GrantFox Official Campaign. All related pull requests must include the labels `GrantFox OSS`, `Official Campaign`, and `Maybe Rewarded`. Ensure you link your PR to its corresponding issue using `Closes #ISSUE_NUMBER`. For more details, refer to the contributor guide gf-09 (link to be added once published).
+
 ## Package Docs
 - `xconfess-backend/README.md`
 - `xconfess-frontend/README.md`
